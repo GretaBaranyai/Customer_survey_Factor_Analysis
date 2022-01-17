@@ -1,0 +1,587 @@
+# Factor_Analysis
+Mintázatok felfedezésére szolgál- exploratív
+Függő változók faktorváltozókba történő összevonása
+Egymással lineárisan összefüggő változók közös lényegét kifejező faktorokat keressük
+Változók:
+	ordinális: sorbarendezhető
+	korrelálniuk kell: ha nincs köztük multikollinearitás nem érdemes vizsgálni
+Két csoport illeszkedését korrelációs mátrix összehasonlításával mérhetjük
+Lépései:
+	1. az elemzés céljának megfogalmazása, a vizsgálatba bevont változók,
+	2. a faktorelemzés módszerének meghatározása,
+	3. a faktorelemzés alkalmazhatóságának vizsgálata,
+	4. a faktorok/főkomponensek számának meghatározása,
+	5. a faktorok értelmezése,
+	6. értelmezés rotálással,
+	7. a faktorok elmentése,
+	8. további felhasználás.
+Főkomponens elemzés: 
+	első faktorként egy olyan standardizált (0-s átlagú, 1-es szórású) változót állít elő, amelyik a legjobban korrelál az összes modellbe vitt változóval, második faktorként egy olyat, amelyik
+	korrelálatlan a már előállított faktorral és legjobban korrelál az összes modellbe vitt változóval és így tovább.
+	A korrelációs együtthatók mátrixából úgynevezett sajátértéket és sajátvektort számít közelítő (iterációs) módszerrel
+Kaiser kritérium:
+	Az 1 sajátérték feletti faktorokat vegyük figyelembe. Scree plot segít, hogy hány faktor legyen.
+Alkalmasság vizsgálata:
+	Korrelációs mátrix:
+		Szignifikáns korrelációk: alkalmasak a faktor elemzésre. Ha túlságosan magasak a korrelációk a változók egy faktorba tömörülnek (ez is lehet cél)
+	Bartlett-teszt:
+		Megmutatja, hogy a változók az alapsokaságba korrelálnak-e.
+		Ha kissebb mint 0,05 akkor 95%-os valószínűséggel állíthatjuk, hogy a változók közti kapcsolat nem a véletlen műve, tehát van kapcsolat.
+	KMO:
+		≥ 0,9 tökéletesen alkalmas
+		≥ 0,7 megfelelő
+		≥ 0,5 elfogadható
+		<0,5 nem alkalmas a faktorelemzésre
+Értelmezés:
+	Faktorsúly értéke legalább 0,25 legyen
+	Minden változó hozzá járul-e a faktorstuktúra kialakításához?
+Rotálás:
+	Faktorok tengelyeinek elforgatása a jobb illeszkedés miatt.
+	Lehet:
+		derékszögű (varimax:csökkenti az egy faktorra eső magas faktorsúlyú változók számát)
+		hegyesszögű
+
+setwd('C:/Users/Felhasználó/Desktop/sokváltozós statisztikai elemzés Bozsonyi/factor analysis')
+library(corrplot)       
+library(tidyverse)      
+library(ggplot2)        
+library(psych)          
+library(car)            
+library(caTools) 
+
+dataset<-read.csv("Factor-Hair-Revised.csv", header=T)
+str(dataset)
+'data.frame':   100 obs. of  13 variables:
+ $ ID          : int  1 2 3 4 5 6 7 8 9 10 ... #ID, egész számok
+ $ ProdQual    : num  8.5 8.2 9.2 6.4 9 6.5 6.9 6.2 5.8 6.4 ...#Termék minőség, szám
+ $ Ecom        : num  3.9 2.7 3.4 3.3 3.4 2.8 3.7 3.3 3.6 4.5 ...#E kereskedelem, szám
+ $ TechSup     : num  2.5 5.1 5.6 7 5.2 3.1 5 3.9 5.1 5.1 ...#Telefonos segítségnyújtás, szám
+ $ CompRes     : num  5.9 7.2 5.6 3.7 4.6 4.1 2.6 4.8 6.7 6.1 ...#Panaszkezelés, szám
+ $ Advertising : num  4.8 3.4 5.4 4.7 2.2 4 2.1 4.6 3.7 4.7 ...#Reklámok, szám
+ $ ProdLine    : num  4.9 7.9 7.4 4.7 6 4.3 2.3 3.6 5.9 5.7 ...#Termékcsalád, szám
+ $ SalesFImage : num  6 3.1 5.8 4.5 4.5 3.7 5.4 5.1 5.8 5.7 ...#Salesforce image, szám
+ $ ComPricing  : num  6.8 5.3 4.5 8.8 6.8 8.5 8.9 6.9 9.3 8.4 ...#Versenyképes árképzés, szám
+ $ WartyClaim  : num  4.7 5.5 6.2 7 6.1 5.1 4.8 5.4 5.9 5.4 ...#Garancia és reklamáció kezelés, szám
+ $ OrdBilling  : num  5 3.9 5.4 4.3 4.5 3.6 2.1 4.3 4.4 4.1 ...#Megrendelés és számlázsás, szám
+ $ DelSpeed    : num  3.7 4.9 4.5 3 3.5 3.3 2 3.7 4.6 4.4 ...#Szállítási sebesség, szám
+ $ Satisfaction: num  8.2 5.7 8.9 4.8 7.1 4.7 5.7 6.3 7 5.5 ...#Vevői elégedettség
+ #skálázott az adatbázis
+ 
+ ################################################################## ADAT TISZTÍTÁS #########################################################################
+ #sorok átnevezése
+names(dataset)[2]<-paste("X1.Termék.minőség")
+names(dataset)[3]<-paste("X2.E.kereskedelem")
+names(dataset)[4]<-paste("X3.Telefonos.segítségnyújtás")
+names(dataset)[5]<-paste("X4.Panaszkezelés")
+names(dataset)[6]<-paste("X5.Reklám")
+names(dataset)[7]<-paste("X6.Termékcsalád")
+names(dataset)[8]<-paste("X7.Salesforce.image")
+names(dataset)[9]<-paste("X8.Versenyképes.árképzés")
+names(dataset)[10]<-paste("X9.Garancia.és.reklamációk")
+names(dataset)[11]<-paste("X10.Megrendelés.és.számlázás")
+names(dataset)[12]<-paste("X11.Szállítási.sebesség")
+names(dataset)[13]<-paste("X12.Vevői.elégedettség")
+
+################################################################## ADATOK BEMUTATÁSA #########################################################################
+head(dataset, n=5) #első 5 sor
+
+  ID X1.Termék.minőség X2.E.kereskedelem X3.Telefonos.segítségnyújtás X4.Panaszkezelés X5.Reklám X6.Termékcsalád X7.Salesforce.image X8.Versenyképes.árképzés X9.Garancia.és.reklamációk
+1  1               8.5               3.9                          2.5              5.9       4.8             4.9                 6.0                      6.8                        4.7
+2  2               8.2               2.7                          5.1              7.2       3.4             7.9                 3.1                      5.3                        5.5
+3  3               9.2               3.4                          5.6              5.6       5.4             7.4                 5.8                      4.5                        6.2
+4  4               6.4               3.3                          7.0              3.7       4.7             4.7                 4.5                      8.8                        7.0
+5  5               9.0               3.4                          5.2              4.6       2.2             6.0                 4.5                      6.8                        6.1
+  X10.Megrendelés.és.számlázás X11.Szállítási.sebesség X12.Vevői.elégedettség
+1                          5.0                     3.7                    8.2
+2                          3.9                     4.9                    5.7
+3                          5.4                     4.5                    8.9
+4                          4.3                     3.0                    4.8
+5                          4.5                     3.5                    7.1
+
+sample_n(dataset, 5) #random
+  ID ProdQual Ecom TechSup CompRes Advertising ProdLine SalesFImage ComPricing WartyClaim OrdBilling DelSpeed Satisfaction
+1 81      9.9  3.0     7.4     4.8         4.0      5.9         4.8        4.9        5.9        3.2      3.8          7.1
+2 10      6.4  4.5     5.1     6.1         4.7      5.7         5.7        8.4        5.4        4.1      4.4          5.5
+3 93      9.2  3.9     4.6     5.3         4.2      8.4         4.8        7.1        6.2        4.4      4.2          7.6
+4 90      5.5  5.5     7.7     7.0         5.6      5.7         8.2        6.3        7.4        5.5      4.9          8.2
+5 28      7.0  3.3     5.4     5.5         2.6      4.8         4.2        9.0        6.5        4.3      3.7          5.4
+
+################################################################## LEÍRÓ STATISZTIKA A VÁLTOZÓKRA #########################################################################
+summary(dataset) #leíró statisztika a változókra
+       ID         X1.Termék.minőség X2.E.kereskedelem X3.Telefonos.segítségnyújtás X4.Panaszkezelés   X5.Reklám     X6.Termékcsalád X7.Salesforce.image X8.Versenyképes.árképzés
+ Min.   :  1.00   Min.   : 5.000    Min.   :2.200     Min.   :1.300                Min.   :2.600    Min.   :1.900   Min.   :2.300   Min.   :2.900       Min.   :3.700           
+ 1st Qu.: 25.75   1st Qu.: 6.575    1st Qu.:3.275     1st Qu.:4.250                1st Qu.:4.600    1st Qu.:3.175   1st Qu.:4.700   1st Qu.:4.500       1st Qu.:5.875           
+ Median : 50.50   Median : 8.000    Median :3.600     Median :5.400                Median :5.450    Median :4.000   Median :5.750   Median :4.900       Median :7.100           
+ Mean   : 50.50   Mean   : 7.810    Mean   :3.672     Mean   :5.365                Mean   :5.442    Mean   :4.010   Mean   :5.805   Mean   :5.123       Mean   :6.974           
+ 3rd Qu.: 75.25   3rd Qu.: 9.100    3rd Qu.:3.925     3rd Qu.:6.625                3rd Qu.:6.325    3rd Qu.:4.800   3rd Qu.:6.800   3rd Qu.:5.800       3rd Qu.:8.400           
+ Max.   :100.00   Max.   :10.000    Max.   :5.700     Max.   :8.500                Max.   :7.800    Max.   :6.500   Max.   :8.400   Max.   :8.200       Max.   :9.900           
+ X9.Garancia.és.reklamációk X10.Megrendelés.és.számlázás X11.Szállítási.sebesség X12.Vevői.elégedettség
+ Min.   :4.100              Min.   :2.000                Min.   :1.600           Min.   :4.700         
+ 1st Qu.:5.400              1st Qu.:3.700                1st Qu.:3.400           1st Qu.:6.000         
+ Median :6.100              Median :4.400                Median :3.900           Median :7.050         
+ Mean   :6.043              Mean   :4.278                Mean   :3.886           Mean   :6.918         
+ 3rd Qu.:6.600              3rd Qu.:4.800                3rd Qu.:4.425           3rd Qu.:7.625         
+ Max.   :8.100              Max.   :6.700                Max.   :5.500           Max.   :9.900  
+ 
+#Függő változó: X12.Vevői.elégedettség
+#Független változó / magyarázó változók: x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11
+
+ ############################################################################## ALKALMASSÁG VIZSGÁLATA ####################################################################
+ ############### ALKALMASSÁG VIZSGÁLATA KMO ###############
+  KMO(dataset)
+Kaiser-Meyer-Olkin factor adequacy
+Call: KMO(r = dataset)
+Overall MSA =  0.66 #KMO>6 tehát alkalmas a vizsgálatra. 
+#>0.5 alkalmas a faktorelemzésre.  megmutatja, hogy az adatok mennyire alkalmasak a faktorelemzésre. (variancia arányát méri)
+#>0.5 akkor használható, minnél jobban közelít 1-hez annál alkalmasabb
+
+MSA for each item = 
+                          ID            X1.Termék.minőség 
+                        0.65                         0.50 
+           X2.E.kereskedelem X3.Telefonos.segítségnyújtás 
+                        0.59                         0.52 
+            X4.Panaszkezelés                    X5.Reklám 
+                        0.84                         0.82 
+             X6.Termékcsalád          X7.Salesforce.image 
+                        0.70                         0.52 
+    X8.Versenyképes.árképzés   X9.Garancia.és.reklamációk 
+                        0.77                         0.51 
+X10.Megrendelés.és.számlázás      X11.Szállítási.sebesség 
+                        0.78                         0.72 
+      X12.Vevői.elégedettség 
+                        0.66 
+ 
+
+############### ALKALMASSÁG VIZSGÁLATA BARTLET TESZT ############### 	
+Megmutatja, hogy a változók az alapsokaságba korrelálnak-e.
+		Ha kissebb mint 0,05 akkor 95%-os valószínűséggel állíthatjuk, hogy a változók közti kapcsolat nem a véletlen műve, tehát van kapcsolat.
+> cortest.bartlett(dataset, 100)
+R was not square, finding R from data
+$chisq
+[1] 777.837
+
+$p.value
+[1] 6.846463e-116 <0.05 alkalmas
+
+$df
+[1] 78
+
+############### ALKALMASSÁG VIZSGÁLATA MULTIKOLLINEARITÁS TESZTELÉSE ############### 
+#ha van multikollinearitás érdemes faktorelemzéssel vizsgálni az adatokat.
+#vifmatrix
+vifmatrix <- vif(lm(`X12.Vevői.elégedettség` ~., data = dataset1))
+vifmatrix
+     X1.Termék.minőség         `X2.E.kereskedelem ` X3.Telefonos.segítségnyújtás          `X4.Panaszkezelés `                    X5.Reklám              X6.Termékcsalád 
+                    1.635797                     2.756694                     2.976796                     4.730448                     1.508933                     3.488185 
+         X7.Salesforce.image     X8.Versenyképes.árképzés   X9.Garancia.és.reklamációk X10.Megrendelés.és.számlázás      X11.Szállítási.sebesség 
+                    3.439420                     1.635000                     3.198337                     2.902999                     6.516014 
+#értékek 1<VIF<10 tehát korrelál az adatállomány
+#VIF=1 nem korrelál
+#1<VIF<5 közepesen korrelál
+#VIF > 5 to 10 magasan korrelál
+
+############### KORRELÁCIÓ MÁTRIX VIZUALIZÁCIÓ ############### 
+#Kapcsolat erősségét és irányát vizsgálja
+#Értékei:
+#1: tökéletes kapcsolat
+#0: nincs kapcsolat, függetlenek
+#-1: tökéletes, fordítottan arányos kapcsolat 
+	van
+
+corlnMtrx <- cor(dataset1[,-12])
+corlnMtrx
+                             X1.Termék.minőség X2.E.kereskedelem  X3.Telefonos.segítségnyújtás X4.Panaszkezelés    X5.Reklám X6.Termékcsalád X7.Salesforce.image X8.Versenyképes.árképzés
+X1.Termék.minőség                   1.00000000      -0.1371632174                 0.0956004542         0.1063700 -0.05347313      0.47749341         -0.15181287              -0.40128188
+X2.E.kereskedelem                  -0.13716322       1.0000000000                 0.0008667887         0.1401793  0.42989071     -0.05268784          0.79154371               0.22946240
+X3.Telefonos.segítségnyújtás        0.09560045       0.0008667887                 1.0000000000         0.0966566 -0.06287007      0.19262546          0.01699054              -0.27078668
+X4.Panaszkezelés                    0.10637000       0.1401792611                 0.0966565978         1.0000000  0.19691685      0.56141695          0.22975176              -0.12795425
+X5.Reklám                          -0.05347313       0.4298907110                -0.0628700668         0.1969168  1.00000000     -0.01155082          0.54220366               0.13421689
+X6.Termékcsalád                     0.47749341      -0.0526878383                 0.1926254565         0.5614170 -0.01155082      1.00000000         -0.06131553              -0.49494840
+X7.Salesforce.image                -0.15181287       0.7915437115                 0.0169905395         0.2297518  0.54220366     -0.06131553          1.00000000               0.26459655
+X8.Versenyképes.árképzés           -0.40128188       0.2294624014                -0.2707866821        -0.1279543  0.13421689     -0.49494840          0.26459655               1.00000000
+X9.Garancia.és.reklamációk          0.08831231       0.0518981915                 0.7971679258         0.1404083  0.01079207      0.27307753          0.10745534              -0.24498605
+X10.Megrendelés.és.számlázás        0.10430307       0.1561473316                 0.0801018246         0.7568686  0.18423559      0.42440825          0.19512741              -0.11456703
+X11.Szállítási.sebesség             0.02771800       0.1916360683                 0.0254406935         0.8650917  0.27586308      0.60185021          0.27155126              -0.07287173
+                             X9.Garancia.és.reklamációk X10.Megrendelés.és.számlázás X11.Szállítási.sebesség
+X1.Termék.minőség                            0.08831231                   0.10430307              0.02771800
+X2.E.kereskedelem                            0.05189819                   0.15614733              0.19163607
+X3.Telefonos.segítségnyújtás                 0.79716793                   0.08010182              0.02544069
+X4.Panaszkezelés                             0.14040830                   0.75686859              0.86509170
+X5.Reklám                                    0.01079207                   0.18423559              0.27586308
+X6.Termékcsalád                              0.27307753                   0.42440825              0.60185021
+X7.Salesforce.image                          0.10745534                   0.19512741              0.27155126
+X8.Versenyképes.árképzés                    -0.24498605                  -0.11456703             -0.07287173
+X9.Garancia.és.reklamációk                   1.00000000                   0.19706512              0.10939460
+X10.Megrendelés.és.számlázás                 0.19706512                   1.00000000              0.75100307
+X11.Szállítási.sebesség                      0.10939460                   0.75100307              1.00000000
+
+png(file="1.factor_analysis_correlation_mátrix.png", width=500, height=540)
+corrplot.mixed(corlnMtrx,
+               lower = "number", upper = "pie", 
+               tl.col = "black",tl.pos = "lt")
+
+
+ ############### ALKALMASSÁG VIZSGÁLATA FÜGGŐ VÁLTOZÓ X12.VEVŐI ELÉGEDETTSÉGRŐL ###############
+ #histogram, normális eloszlás
+  png(file="2_factor_analysis_histogram.png", width=500, height=540)
+ hist (`X12.Vevői.elégedettség`, breaks = c(0:11), labels = T,
+      include.lowest=T, right=T, 
+      col=8, border=1, 
+      main = paste("Vevői elégedettség"),
+      xlab= "Vevői elégedettség", ylab="COUNT", 
+            xlim = c(0,11), ylim = c(0,35))
+            
+  #boxplot, outlierek, szórás vizsgálata
+  png(file="3_factor_analysis_boxplot_vevői_elégedettség.png", width=500, height=540)	  
+boxplot(`X12.Vevői.elégedettség`, horizontal = T, xlab = variables[12], ylim=c(0,11)) 
+      xlim = c(0,11), ylim = c(0,35))
+    
+  ############### ALKALMASSÁG VIZSGÁLATA FÜGGETLEN VÁLTOZÓK  ###############
+   #histogram, normális eloszlás
+   png(file="4_factor_analysis_histogram_összes_változó.png", width=500, height=540)
+par(mfrow = c(3,4)) 
+for (i in (1:11)) {
+  
+  h = round(max(dataset1[,i]),0)+1
+  
+  l = round(min(dataset1[,i]),0)-1
+  
+  n = variables[i]
+  
+  hist (dataset1[,i], breaks = seq(l,h,((h-l)/6)), labels = T,
+        include.lowest=T, right=T, 
+        col=8, border=1, 
+        main = NULL, xlab= n, ylab=NULL, 
+        cex.lab=1, cex.axis=1, cex.main=1, cex.sub=1,
+        xlim = c(0,11), ylim = c(0,70))
+}
+    #boxplot, outlierek, szórás vizsgálata
+    png(file="5_factor_analysis_boxplot_összes_változó.png", width=500, height=540)
+par(mfrow = c(2,1))
+boxplot(dataset1[,-12], las = 2, names = variables[-12], cex.axis = 1)
+
+############### ALKALMASSÁG VIZSGÁLATA ÖSSZES VÁLTOZÓ HOMOSZKEDASZTICITÁS ###############
+#minden változó ugyanazzal a véges varianciával rendelkezik
+Regression=lm(dataset1$X12.Vevői.elégedettség~dataset1$X1.Termék.minőség+dataset1$X2.E.kereskedelem+dataset1$X3.Telefonos.segítségnyújtás +dataset1$X4.Panaszkezelés+dataset1$X5.Reklám +dataset1$X6.Termékcsalád+dataset1$X7.Salesforce.image+
+dataset1$X8.Versenyképes.árképzés+dataset1$X9.Garancia.és.reklamációk+dataset1$X10.Megrendelés.és.számlázás+dataset1$X11.Szállítási.sebesség)
+summary(Regression)
+
+Call:
+lm(formula = dataset1$X12.Vevői.elégedettség ~ dataset1$X1.Termék.minőség + 
+    dataset1$X2.E.kereskedelem + dataset1$X3.Telefonos.segítségnyújtás + 
+    dataset1$X4.Panaszkezelés + dataset1$X5.Reklám + dataset1$X6.Termékcsalád + 
+    dataset1$X7.Salesforce.image + dataset1$X8.Versenyképes.árképzés + 
+    dataset1$X9.Garancia.és.reklamációk + dataset1$X10.Megrendelés.és.számlázás + 
+    dataset1$X11.Szállítási.sebesség)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1.43005 -0.31165  0.07621  0.37190  0.90120 
+
+Coefficients:
+                                      Estimate Std. Error t value Pr(>|t|)    
+(Intercept)                           -0.66961    0.81233  -0.824  0.41199    
+dataset1$X1.Termék.minőség             0.37137    0.05177   7.173 2.18e-10 *** #szignifikáns kapcsolat
+dataset1$X2.E.kereskedelem            -0.44056    0.13396  -3.289  0.00145 **  #szignifikáns kapcsolat
+dataset1$X3.Telefonos.segítségnyújtás  0.03299    0.06372   0.518  0.60591    
+dataset1$X4.Panaszkezelés              0.16703    0.10173   1.642  0.10416    
+dataset1$X5.Reklám                    -0.02602    0.06161  -0.422  0.67382    
+dataset1$X6.Termékcsalád               0.14034    0.08025   1.749  0.08384 .   #szignifikáns kapcsolat
+dataset1$X7.Salesforce.image           0.80611    0.09775   8.247 1.45e-12 *** #szignifikáns kapcsolat
+dataset1$X8.Versenyképes.árképzés     -0.03853    0.04677  -0.824  0.41235    
+dataset1$X9.Garancia.és.reklamációk   -0.10298    0.12330  -0.835  0.40587    
+dataset1$X10.Megrendelés.és.számlázás  0.14635    0.10367   1.412  0.16160    
+dataset1$X11.Szállítási.sebesség       0.16570    0.19644   0.844  0.40124    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.5623 on 88 degrees of freedom
+Multiple R-squared:  0.8021,    Adjusted R-squared:  0.7774 
+F-statistic: 32.43 on 11 and 88 DF,  p-value: < 2.2e-16
+png(file="6_factor_analysis_homoszkedaszticitás.png", width=500, height=540)
+plot(Regression)
+
+Multiple R-squared:  0.8021,  magyarázó erő: 80%
+Adjusted R-squared:  0.7774 magyarázó erő: a vásárlói elégedettséget 77%-ban magyarázzák a szolgáltatások minősége
+p-value: < 2.2e-16 kisebb mint 0.05 hasznosnak tekinthető a modell
+
+################################################################## MODELL FUTTATÁSA #########################################################################
+ ############### SAJÁT ÉRTÉK SZÁMÍTÁSA A VÁLTOZÓKHOZ  ###############
+# Saját érték számítása: Nagyobbnak kell lennie mint 1, akkor érdemes a faktorban használni
+
+A <- eigen(corlnMtrx)
+EV <- A$values
+EV
+3.42697133 2.55089671 1.69097648 1.08655606 0.60942409 0.55188378
+ [7] 0.40151815 0.24695154 0.20355327 0.13284158 0.09842702
+ 
+  ############### SCREE PLOT, HÁNY FAKTOROM LEGYEN ############### 
+png(file="7_factor_analysis_scree_plot.png", width=500, height=540) 
+ plot(EV, main = "Scree Plot", xlab = "Faktorok", ylab = "Saját érték/saját vektor", pch = 20, col = "blue")
+lines(EV, col = "red")
+abline(h = 1, col = "green", lty = 2)
+#4 faktorom legyen
+
+############### FAKTOR ELEMZÉS 4 FAKTOR ############### 
+FourFactor1 = fa(r= dataset1[,-12], nfactors =4, rotate ="none", fm ="pa")
+print(FourFactor1)
+Factor Analysis using method =  pa
+Call: fa(r = dataset1[, -12], nfactors = 4, rotate = "none", 
+    fm = "pa")
+Standardized loadings (pattern matrix) based upon correlation matrix
+                               PA1   PA2   PA3   PA4   h2    u2 com
+X1.Termék.minőség             0.20 -0.41 -0.06  0.46 0.42 0.576 2.4
+X2.E.kereskedelem             0.29  0.66  0.27  0.22 0.64 0.362 2.0
+X3.Telefonos.segítségnyújtás  0.28 -0.38  0.74 -0.17 0.79 0.205 1.9
+X4.Panaszkezelés              0.86  0.01 -0.26 -0.18 0.84 0.157 1.3
+X5.Reklám                     0.29  0.46  0.08  0.13 0.31 0.686 1.9
+X6.Termékcsalád               0.69 -0.45 -0.14  0.31 0.80 0.200 2.3
+X7.Salesforce.image           0.39  0.80  0.35  0.25 0.98 0.021 2.1
+X8.Versenyképes.árképzés     -0.23  0.55 -0.04 -0.29 0.44 0.557 1.9
+X9.Garancia.és.reklamációk    0.38 -0.32  0.74 -0.15 0.81 0.186 2.0
+X10.Megrendelés.és.számlázás  0.75  0.02 -0.18 -0.18 0.62 0.378 1.2
+X11.Szállítási.sebesség       0.90  0.10 -0.30 -0.20 0.94 0.058 1.4
+
+                       PA1  PA2  PA3  PA4
+SS loadings           3.21 2.22 1.50 0.68 #négyzetes terhelések összege, ha nagyobb mint 1 akkor édemes megtartani a faktort
+Proportion Var        0.29 0.20 0.14 0.06 #faktorok által magyarázott variancia arányát mutatja
+Cumulative Var        0.29 0.49 0.63 0.69 #: A teljesnek az első 33%-át, a második 55%-át, a harmadik 69%-át, a negyedik 79%-át magyarázza. 
+Proportion Explained  0.42 0.29 0.20 0.09
+Cumulative Proportion 0.42 0.71 0.91 1.00
+
+Mean item complexity =  1.9 #tételek összetettsége
+Test of the hypothesis that 4 factors are sufficient. #Annak tesztelése, hogy a négy komponenes elegendő
+
+The degrees of freedom for the null model are  55  and the objective function was  6.55 with Chi Square of  619.27
+The degrees of freedom for the model are 17  and the objective function was  0.33 
+
+The root mean square of the residuals (RMSR) is  0.02  #reziduálisok négyzetgyöke
+The df corrected root mean square of the residuals is  0.03 
+
+The harmonic number of observations is  100 with the empirical chi square  3.19  with prob <  1 #empirikus chi négyzet
+The total number of observations was  100  with Likelihood Chi Square =  30.27  with prob <  0.024 
+
+Tucker Lewis Index of factoring reliability =  0.921
+RMSEA index =  0.088  and the 90 % confidence intervals are  0.032 0.139
+BIC =  -48.01
+Fit based upon off diagonal values = 1 #illeszkedés
+
+Measures of factor score adequacy             
+                                                   PA1  PA2  PA3  PA4
+Correlation of (regression) scores with factors   0.98 0.97 0.95 0.88
+Multiple R square of scores with factors          0.96 0.95 0.91 0.78
+Minimum correlation of possible factor scores     0.92 0.90 0.82 0.56
+
+#Legalább 25%-ot magyarázzon minden faktor
+#100%-nál többet magyaráznak a faktorok
+#Megoldás: megválhatunk a legnagyobb kummunalitású faktortól
+
+################################################################## MODELL JAVÍTÁSA (CUT OFF 0.3) #########################################################################
+############### FAKTOR ELEMZÉS 4 FAKTOR 0.3-NÁL NAGYOBB ############### 
+
+Loading1 <- print(FourFactor1$loadings,cutoff = 0.3)
+Loadings:
+                             PA1    PA2    PA3    PA4   
+X1.Termék.minőség                   -0.408         0.463 #ugyanazon ül
+X2.E.kereskedelem                    0.659              
+X3.Telefonos.segítségnyújtás        -0.381  0.738        #ugyanazon ül
+X4.Panaszkezelés              0.862                     
+X5.Reklám                            0.457              
+X6.Termékcsalád               0.689 -0.453         0.315 #ugyanazon ül
+X7.Salesforce.image           0.395  0.801  0.346        #ugyanazon ül
+X8.Versenyképes.árképzés             0.553              
+X9.Garancia.és.reklamációk    0.379 -0.324  0.735       #ugyanazon ül
+X10.Megrendelés.és.számlázás  0.747                     
+X11.Szállítási.sebesség       0.895        -0.303       #ugyanazon ül
+
+                 PA1   PA2   PA3   PA4
+SS loadings    3.215 2.223 1.499 0.678
+Proportion Var 0.292 0.202 0.136 0.062
+Cumulative Var 0.292 0.494 0.631 0.692
+
+png(file="8_factor_analysis_fa_diagram.png", width=500, height=540)
+fa.diagram(FourFactor1)
+
+################################################################## MODELL JAVÍTÁSA WARIMAX TRANSZFORMÁCIÓ #########################################################################
+#WARIMAX TRANSZFORMÁCIÓ:
+#Derékszögű: csökkenti az egy faktorra eső magas faktorsúlyú változók számát.
+#Varimax: arra törekszik, hogy egy változó egy és csakis egy faktoron üljön. Adott változó négyzetösszegét maximalizálja
+
+FourFactor2 = fa(r= dataset1[,-12], nfactors =4, rotate ="varimax", fm ="pa") #VARIMAX
+print(FourFactor2)
+
+Factor Analysis using method =  pa
+Call: fa(r = dataset1[, -12], nfactors = 4, rotate = "varimax", 
+    fm = "pa")
+Standardized loadings (pattern matrix) based upon correlation matrix
+                               PA1   PA2   PA3   PA4   h2    u2 com
+X1.Termék.minőség             0.02 -0.07  0.02  0.65 0.42 0.576 1.0
+X2.E.kereskedelem             0.07  0.79  0.03 -0.11 0.64 0.362 1.1
+X3.Telefonos.segítségnyújtás  0.02 -0.03  0.88  0.12 0.79 0.205 1.0
+X4.Panaszkezelés              0.90  0.13  0.05  0.13 0.84 0.157 1.1
+X5.Reklám                     0.17  0.53 -0.04 -0.06 0.31 0.686 1.2
+X6.Termékcsalád               0.53 -0.04  0.13  0.71 0.80 0.200 1.9
+X7.Salesforce.image           0.12  0.97  0.06 -0.13 0.98 0.021 1.1
+X8.Versenyképes.árképzés     -0.08  0.21 -0.21 -0.59 0.44 0.557 1.6
+X9.Garancia.és.reklamációk    0.10  0.06  0.89  0.13 0.81 0.186 1.1
+X10.Megrendelés.és.számlázás  0.77  0.13  0.09  0.09 0.62 0.378 1.1
+X11.Szállítási.sebesség       0.95  0.19  0.00  0.09 0.94 0.058 1.1
+
+                       PA1  PA2  PA3  PA4
+SS loadings           2.63 1.97 1.64 1.37 #négyzetes terhelések összege, ha nagyobb mint 1 akkor édemes megtartani a faktort.
+Proportion Var        0.24 0.18 0.15 0.12 #Faktorok által magyarázott variancia arányát mutatja.
+Cumulative Var        0.24 0.42 0.57 0.69 #A teljesnek az első 24%-át, a második 42%-át, a harmadik 57%-át, a negyedik 69%-át magyarázza.
+Proportion Explained  0.35 0.26 0.22 0.18
+Cumulative Proportion 0.35 0.60 0.82 1.00
+
+Mean item complexity =  1.2
+Test of the hypothesis that 4 factors are sufficient.
+
+The degrees of freedom for the null model are  55  and the objective function was  6.55 with Chi Square of  619.27
+The degrees of freedom for the model are 17  and the objective function was  0.33 
+
+The root mean square of the residuals (RMSR) is  0.02 
+The df corrected root mean square of the residuals is  0.03 
+
+The harmonic number of observations is  100 with the empirical chi square  3.19  with prob <  1 
+The total number of observations was  100  with Likelihood Chi Square =  30.27  with prob <  0.024 
+
+Tucker Lewis Index of factoring reliability =  0.921
+RMSEA index =  0.088  and the 90 % confidence intervals are  0.032 0.139
+BIC =  -48.01
+Fit based upon off diagonal values = 1
+Measures of factor score adequacy             
+                                                   PA1  PA2  PA3  PA4
+Correlation of (regression) scores with factors   0.98 0.99 0.94 0.88
+Multiple R square of scores with factors          0.96 0.97 0.88 0.78
+Minimum correlation of possible factor scores     0.93 0.94 0.77 0.55 
+
+#Legalább 25%-ot magyarázzon minden faktor
+#100%-nál többet magyaráznak a faktorok
+
+################################################################## MODELL JAVÍTÁSA WARIMAX TRANSZFORMÁCIÓ (CUT OFF 0.3) #########################################################################
+
+Loading2 <- print(FourFactor2$loadings,cutoff = 0.3)
+
+Loadings:
+                             PA1    PA2    PA3    PA4   
+X1.Termék.minőség                                  0.647
+X2.E.kereskedelem                    0.787              
+X3.Telefonos.segítségnyújtás                0.883       
+X4.Panaszkezelés              0.898                     
+X5.Reklám                            0.530              
+X6.Termékcsalád               0.525                0.712 #ugyanazon ül
+X7.Salesforce.image                  0.971              
+X8.Versenyképes.árképzés                          -0.590
+X9.Garancia.és.reklamációk                  0.885       
+X10.Megrendelés.és.számlázás  0.768                     
+X11.Szállítási.sebesség       0.949                     
+
+                 PA1   PA2   PA3   PA4
+SS loadings    2.635 1.967 1.641 1.371 #Négyzetes terhelések összege, ha nagyobb mint 1 akkor édemes megtartani a faktort. Mindegyiket érdemes megtartani.
+Proportion Var 0.240 0.179 0.149 0.125 #Faktorok által magyarázott variancia arányát mutatja.
+Cumulative Var 0.240 0.418 0.568 0.692 #A teljesnek az első 24%-át, a második 41%-át, a harmadik 56%-át, a negyedik 69%-át magyarázza
+
+png(file="9_factor_analysis_fa_diagram_cut_off_2.png", width=500, height=540)
+fa.diagram(FourFactor2)
+
+#EREDMÉNY:
+#X6: ugyanazon a faktoron ül.
+#Javítás: X6. kivétele a modellből.
+#Kevésbé ülnek ugyanazon a faktoron, és kissebb a magyarázó erő, de biztosabb.
+
+
+################################################################## MODELL JAVÍTÁSA SCORE ELLENŐRZÉSE #########################################################################
+dataset3 <- cbind(dataset1[,12],FourFactor2$scores)
+head(dataset3)
+
+                PA1        PA2          PA3         PA4
+[1,] 8.2 -0.1338871  0.9175166 -1.719604873  0.09135411
+[2,] 5.7  1.6297604 -2.0090053 -0.596361722  0.65808192
+[3,] 8.9  0.3637658  0.8361736  0.002979966  1.37548765
+[4,] 4.8 -1.2225230 -0.5491336  1.245473305 -0.64421384
+[5,] 7.1 -0.4854209 -0.4276223 -0.026980304  0.47360747
+[6,] 4.7 -0.5950924 -1.3035333 -1.183019401 -0.95913571
+
+colnames(dataset3) <- c("Vevői.elégedettség", "Értékesítései.körzet", "Marketing","Értékesítés.utáni.szolgáltatás","Ár.érték.arány")
+head(dataset3)
+     Vevői.elégedettség Értékesítései.körzet  Marketing Értékesítés.utáni.szolgáltatás Ár.érték.arány
+[1,]                8.2           -0.1338871  0.9175166                   -1.719604873     0.09135411
+[2,]                5.7            1.6297604 -2.0090053                   -0.596361722     0.65808192
+[3,]                8.9            0.3637658  0.8361736                    0.002979966     1.37548765
+[4,]                4.8           -1.2225230 -0.5491336                    1.245473305    -0.64421384
+[5,]                7.1           -0.4854209 -0.4276223                   -0.026980304     0.47360747
+[6,]                4.7           -0.5950924 -1.3035333                   -1.183019401    -0.95913571
+
+dataset3 <- as.data.frame(dataset3) #convert to dataframe
+
+############### KORRELÁCIÓS MÁTRIX A NÉGY FAKTORRAL ############### 
+png(file="10_factor_analysis_korrelációs_mátrix.png", width=500, height=540)
+corrplot.mixed(cor(dataset3),
+               lower = "number", upper = "pie", 
+               tl.col = "black",tl.pos = "lt")
+# KORRELÁCIÓ: 
+#Kapcsolat erősségét és irányát vizsgálja
+#Értékei:
+#1: tökéletes kapcsolat
+#0: nincs kapcsolat, függetlenek
+#-1: tökéletes fordítottan arányos kapcsolat 
+	van
+
+############### LINEÁRIS REGRESSZIÓ A NÉGY FAKTORRAL ############### 
+linearModel = lm(Vevői.elégedettség ~., data = dataset3)
+summary(linearModel)
+Call:
+lm(formula = Vevői.elégedettség ~ ., data = dataset3)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-1.7125 -0.4708  0.1024  0.4158  1.3483 
+
+Coefficients:
+                               Estimate Std. Error t value Pr(>|t|)    
+(Intercept)                     6.91800    0.06696 103.317  < 2e-16 *** 
+Értékesítései.körzet            0.57963    0.06857   8.453 3.32e-13 *** #szignifikáns
+Marketing                       0.61978    0.06834   9.070 1.61e-14 *** #szignifikáns
+Értékesítés.utáni.szolgáltatás  0.05692    0.07173   0.794    0.429    
+Ár.érték.arány                  0.61168    0.07656   7.990 3.16e-12 *** #szignifikáns
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.6696 on 95 degrees of freedom #regressziós egyenestől lévő átlagos távolság (minél kissebb annál jobb)
+Multiple R-squared:  0.6971,    Adjusted R-squared:  0.6844 #A létrehozott faktorok 68%-ban magyarázzák a vásárlói elégedettséget.
+F-statistic: 54.66 on 4 and 95 DF,  p-value: < 2.2e-16 #általános szignifikancia, megmondja, hogy a magyarázó változóink hasznosak-e
+
+
+png(file="11_factor_analysis_linear_model_négy_faktor.png", width=500, height=540)
+plot(linearModel, data = dataset3, cex.lab = 1.5)
+legend('bottomright', legend = 'vevői elégedettség~faktorok', lty = 1, col = 'red', lwd = 2.5, title = 'Regression line')
+
+ #LINEÁRIS REGRESSZIÓ: 
+#X1, X2, X4 : szignifikáns
+#X3: nem szignifikáns
+
+############### MULTIKOLLINEARITÁS TESZTELÉSE VIF MODELL ############### 
+#Változók (faktorok) közti korreláció vizsgálata:
+#Ha a változók közt nem magas a korreláció érvényes a faktor analízis.
+#Értékek :
+#1<VIF<10 korrelál az adatállomány
+#VIF=1 nem korrelál
+#1<VIF<5 közepesen korrelál
+#VIF > 5 to 10 magasan korrelál
+
+vif(linearModel)
+Értékesítései.körzet                            Marketing 
+                      1.001021                       1.002683 
+                      
+Értékesítés.utáni.szolgáltatás                 Ár.érték.arány 
+                      1.002981                       1.005848 
+
+vifmatrix2 <- vif(lm(`Vevői.elégedettség` ~., data = dataset3))
+  Értékesítései.körzet                          Marketing 
+                      1.001021                       1.002683 
+Értékesítés.utáni.szolgáltatás                 Ár.érték.arány 
+                      1.002981                       1.005848 
+
+#Kis mértékben korrelálnak egymással a faktorok:
+#Nincs értelme tovább szűkíteni a faktorok számát
