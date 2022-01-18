@@ -221,7 +221,7 @@ corrplot.mixed(corlnMtrx,
                tl.col = "black",tl.pos = "lt")
 
 
- ############### ALKALMASSÁG VIZSGÁLATA FÜGGŐ VÁLTOZÓ X12.VEVŐI ELÉGEDETTSÉGRŐL ###############
+ ############### ALKALMASSÁG VIZSGÁLATA X12.VEVŐI ELÉGEDETTSÉGRŐL ###############
  #histogram, normális eloszlás
   png(file="2_factor_analysis_histogram.png", width=500, height=540)
  hist (`X12.Vevői.elégedettség`, breaks = c(0:11), labels = T,
@@ -236,7 +236,7 @@ corrplot.mixed(corlnMtrx,
 boxplot(`X12.Vevői.elégedettség`, horizontal = T, xlab = variables[12], ylim=c(0,11)) 
       xlim = c(0,11), ylim = c(0,35))
     
-  ############### ALKALMASSÁG VIZSGÁLATA FÜGGETLEN VÁLTOZÓK  ###############
+  ############### ALKALMASSÁG VIZSGÁLATA KIINDULÓ VÁLTOZÓK  ###############
    #histogram, normális eloszlás
    png(file="4_factor_analysis_histogram_összes_változó.png", width=500, height=540)
 par(mfrow = c(3,4)) 
